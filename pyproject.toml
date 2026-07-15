@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adalm2000-mcp"
-version = "0.1.0"
-description = "MCP server for ADALM2000 (M2k) — AWG, scope, PSU via libiio"
+version = "0.2.0"
+description = "MCP server for ADALM2000 (M2k) — AWG, scope, PSU, logic analyzer via libiio"
 authors = []
 readme = "README.md"
 requires-python = ">=3.12"

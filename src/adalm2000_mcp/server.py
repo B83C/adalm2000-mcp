@@ -8,9 +8,10 @@ from adalm2000_mcp.backend import Backend, create_backend
 from adalm2000_mcp.tools.device import handle_device
 from adalm2000_mcp.tools.awg import handle_awg
 from adalm2000_mcp.tools.scope import handle_scope
+from adalm2000_mcp.tools.logic import handle_logic
 from adalm2000_mcp.tools.psu import handle_psu
 
-mcp = FastMCP("adalm2000-mcp", version="0.1.0")
+mcp = FastMCP("adalm2000-mcp", version="0.2.0")
 
 _backend: Backend | None = None
 
@@ -62,6 +63,39 @@ def adalm_scope(
 def adalm_psu(operation: str, channel: int = 0, voltage: float = 0.0) -> dict:
     b = get_backend()
     return handle_psu(b, operation, channel, voltage)
+
+
+@mcp.tool()
+def adalm_logic(
+    operation: str,
+    channel: int = 0,
+    channels: str = "",
+    sample_count: int = 100000,
+    sample_rate: float | None = None,
+    threshold: float = 1.5,
+    baud_rate: int = 115200,
+    data_bits: int = 8,
+    parity: str = "none",
+    stop_bits: float = 1.0,
+    protocol: str = "",
+    sclk_channel: int = 1,
+    mosi_channel: int = 0,
+    miso_channel: int | None = None,
+    cs_channel: int | None = None,
+    scl_channel: int = 1,
+    sda_channel: int = 0,
+    cpol: int = 0,
+    cpha: int = 0,
+    bit_order: str = "msb",
+    address_bits: int = 7,
+) -> dict:
+    b = get_backend()
+    return handle_logic(
+        b, operation, channel, channels, sample_count, sample_rate,
+        threshold, baud_rate, data_bits, parity, stop_bits, protocol,
+        sclk_channel, mosi_channel, miso_channel, cs_channel,
+        scl_channel, sda_channel, cpol, cpha, bit_order, address_bits,
+    )
 
 
 def run_server(mock: bool = False, http: bool = False, port: int = 10892, transport: str | None = None):

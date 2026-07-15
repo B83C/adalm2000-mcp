@@ -46,6 +46,15 @@ class AWGConfig:
     enabled: bool = False
 
 
+@dataclass
+class LogicData:
+    channels: list[int]
+    samples: list[int]
+    sample_rate: float
+    time_span: float
+    bits_per_sample: int = 16
+
+
 class Backend(ABC):
     @abstractmethod
     def list_devices(self) -> list[dict[str, Any]]:
@@ -97,6 +106,16 @@ class Backend(ABC):
 
     @abstractmethod
     def psu_disable(self, channel: int) -> bool:
+        ...
+
+    @abstractmethod
+    def logic_capture(
+        self,
+        channels: list[int] | None = None,
+        sample_count: int = 8192,
+        sample_rate: float | None = None,
+        threshold: float = 1.5,
+    ) -> LogicData:
         ...
 
 
@@ -196,6 +215,63 @@ class MockBackend(Backend):
     def psu_disable(self, channel: int) -> bool:
         self._psu_enabled[channel] = False
         return True
+
+    def _generate_uart_message(self, text: str, baud: int, sr: float, n: int) -> list[int]:
+        samples_per_bit = int(sr / baud)
+        bits = []
+        for char in text.encode("ascii"):
+            frame = [0]  # start bit
+            for i in range(8):
+                frame.append((char >> i) & 1)
+            frame.append(1)  # stop bit
+            for b in frame:
+                bits.extend([b] * samples_per_bit)
+        bits.extend([1] * (n - len(bits)))
+        return bits[:n]
+
+    def logic_capture(
+        self,
+        channels: list[int] | None = None,
+        sample_count: int = 8192,
+        sample_rate: float | None = None,
+        threshold: float = 1.5,
+    ) -> LogicData:
+        sr = sample_rate or 100e6
+        n = sample_count
+        chs = channels or [0, 1, 2, 3]
+        samples = [0] * n
+
+        for ch in chs:
+            ch_mask = 1 << ch
+            if ch == 0:
+                bits = self._generate_uart_message("Hello", 115200, sr, n)
+                for i, b in enumerate(bits):
+                    if b:
+                        samples[i] |= ch_mask
+            elif ch == 1:
+                duty = 0.6
+                period = max(int(sr / 100000), 2)
+                high = int(period * duty)
+                for i in range(n):
+                    if (i % period) < high:
+                        samples[i] |= ch_mask
+            elif ch == 2:
+                half = int(sr / 200_000)
+                for i in range(n):
+                    if (i // half) % 2 == 1:
+                        samples[i] |= ch_mask
+            elif ch == 3:
+                for i in range(n):
+                    if i < n // 2:
+                        samples[i] |= ch_mask
+
+        return LogicData(
+            channels=chs,
+            samples=samples,
+            sample_rate=sr,
+            time_span=n / sr,
+            bits_per_sample=16,
+        )
 
 
 def create_backend(mock: bool = False) -> Backend:

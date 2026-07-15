@@ -12,6 +12,7 @@ from adalm2000_mcp.backend import (
     AWGConfig,
     Backend,
     DeviceInfo,
+    LogicData,
     WaveformData,
 )
 
@@ -211,3 +212,62 @@ class IioBackend(Backend):
 
     def psu_disable(self, channel: int) -> bool:
         return self.psu_set(channel, 0.0)
+
+    def _logic_via_iio(
+        self, channels: list[int], sample_count: int, sample_rate: float | None
+    ) -> LogicData | None:
+        uri = self._uri()
+        if not uri:
+            return None
+        sr = int(sample_rate or 100e6)
+        try:
+            _run(["iio_attr", "-u", uri, "-d", "m2k-logic-analyser-rx", "sampling_frequency", str(sr)])
+            result = _run([
+                "iio_readdev", "-u", uri, "-s", str(sample_count),
+                "--buffer-size", str(sample_count), "m2k-logic-analyser-rx",
+            ])
+            if result.returncode != 0 or len(result.stdout) < 2:
+                return None
+            raw = np.frombuffer(result.stdout, dtype=np.uint16)
+            if len(raw) < 2:
+                return None
+            samples = [int(v) for v in raw]
+            mask = 0
+            for ch in channels:
+                mask |= 1 << ch
+            masked = [s & mask for s in samples]
+            return LogicData(
+                channels=channels,
+                samples=masked,
+                sample_rate=float(sr),
+                time_span=sample_count / sr,
+                bits_per_sample=16,
+            )
+        except Exception:
+            return None
+
+    def logic_capture(
+        self,
+        channels: list[int] | None = None,
+        sample_count: int = 8192,
+        sample_rate: float | None = None,
+        threshold: float = 1.5,
+    ) -> LogicData:
+        chs = channels or [0, 1]
+        result = self._logic_via_iio(chs, sample_count, sample_rate)
+        if result is not None:
+            return result
+        sr = sample_rate or 100e6
+        n = sample_count
+        samples = [0] * n
+        for ch in chs:
+            ch_mask = 1 << ch
+            wf = self.scope_capture(ch + 1, n, sr)
+            for i, v in enumerate(wf.samples):
+                if v > threshold:
+                    samples[i] |= ch_mask
+        return LogicData(
+            channels=chs, samples=samples,
+            sample_rate=sr, time_span=n / sr,
+            bits_per_sample=16,
+        )
