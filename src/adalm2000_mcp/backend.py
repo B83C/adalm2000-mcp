@@ -1,0 +1,212 @@
+from __future__ import annotations
+
+import math
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+
+
+@dataclass
+class DeviceInfo:
+    connected: bool
+    serial: str = ""
+    name: str = ""
+    channels_scope: int = 2
+    channels_awg: int = 2
+    psu: bool = True
+    mock: bool = False
+    sample_rate_max: float = 100e6
+    awg_sample_rate: float = 75e6
+
+
+@dataclass
+class WaveformData:
+    channel: int
+    samples: list[float]
+    sample_rate: float
+    time_span: float
+    vpp: float
+    vmin: float
+    vmax: float
+    frequency: float | None = None
+
+
+@dataclass
+class AWGConfig:
+    channel: int
+    waveform: str = "sine"
+    frequency: float = 1000.0
+    amplitude: float = 1.0
+    offset: float = 0.0
+    phase: float = 0.0
+    duty_cycle: float = 50.0
+    enabled: bool = False
+
+
+class Backend(ABC):
+    @abstractmethod
+    def list_devices(self) -> list[dict[str, Any]]:
+        ...
+
+    @abstractmethod
+    def connect(self) -> DeviceInfo:
+        ...
+
+    @abstractmethod
+    def disconnect(self) -> bool:
+        ...
+
+    @abstractmethod
+    def status(self) -> DeviceInfo:
+        ...
+
+    @abstractmethod
+    def awg_configure(self, config: AWGConfig) -> bool:
+        ...
+
+    @abstractmethod
+    def awg_start(self, channel: int) -> bool:
+        ...
+
+    @abstractmethod
+    def awg_stop(self, channel: int) -> bool:
+        ...
+
+    @abstractmethod
+    def awg_status(self) -> list[AWGConfig]:
+        ...
+
+    @abstractmethod
+    def scope_capture(self, channel: int, sample_count: int = 8192, sample_rate: float | None = None) -> WaveformData:
+        ...
+
+    @abstractmethod
+    def psu_set(self, channel: int, voltage: float) -> bool:
+        ...
+
+    @abstractmethod
+    def psu_get(self, channel: int) -> float:
+        ...
+
+    @abstractmethod
+    def psu_enable(self, channel: int) -> bool:
+        ...
+
+    @abstractmethod
+    def psu_disable(self, channel: int) -> bool:
+        ...
+
+
+class MockBackend(Backend):
+    def __init__(self):
+        self._connected = False
+        self._awg_configs: dict[int, AWGConfig] = {
+            1: AWGConfig(channel=1),
+            2: AWGConfig(channel=2),
+        }
+        self._psu_voltages: dict[int, float] = {0: 0.0, 1: 0.0}
+        self._psu_enabled: dict[int, bool] = {0: False, 1: False}
+
+    def list_devices(self) -> list[dict[str, Any]]:
+        return [
+            {"serial": "MOCK-0001", "name": "ADALM2000 (Mock)", "uri": "mock"},
+        ]
+
+    def connect(self) -> DeviceInfo:
+        self._connected = True
+        return DeviceInfo(
+            connected=True, serial="MOCK-0001",
+            name="ADALM2000 (Mock)", mock=True,
+        )
+
+    def disconnect(self) -> bool:
+        self._connected = False
+        return True
+
+    def status(self) -> DeviceInfo:
+        return DeviceInfo(
+            connected=self._connected, serial="MOCK-0001",
+            name="ADALM2000 (Mock)", mock=True,
+        )
+
+    def awg_configure(self, config: AWGConfig) -> bool:
+        self._awg_configs[config.channel] = config
+        return True
+
+    def awg_start(self, channel: int) -> bool:
+        if channel not in self._awg_configs:
+            return False
+        self._awg_configs[channel].enabled = True
+        return True
+
+    def awg_stop(self, channel: int) -> bool:
+        if channel not in self._awg_configs:
+            return False
+        self._awg_configs[channel].enabled = False
+        return True
+
+    def awg_status(self) -> list[AWGConfig]:
+        return list(self._awg_configs.values())
+
+    def scope_capture(self, channel: int, sample_count: int = 8192, sample_rate: float | None = None) -> WaveformData:
+        sr = sample_rate or 1e6
+        t = np.arange(sample_count) / sr
+        cfg = self._awg_configs.get(channel, AWGConfig(channel=channel))
+        if cfg.waveform == "sine":
+            sig = cfg.amplitude * np.sin(2 * math.pi * cfg.frequency * t + cfg.phase) + cfg.offset
+        elif cfg.waveform == "square":
+            sig = cfg.amplitude * np.sign(np.sin(2 * math.pi * cfg.frequency * t + cfg.phase)) + cfg.offset
+        elif cfg.waveform == "triangle":
+            sig = cfg.amplitude * (2 * np.abs(2 * (cfg.frequency * t + cfg.phase / (2 * math.pi)) % 2 - 1) - 1) + cfg.offset
+        elif cfg.waveform == "sawtooth":
+            sig = cfg.amplitude * (2 * ((cfg.frequency * t + cfg.phase / (2 * math.pi)) % 1) - 1) + cfg.offset
+        elif cfg.waveform == "dc":
+            sig = np.full(sample_count, cfg.offset)
+        else:
+            sig = cfg.amplitude * np.sin(2 * math.pi * 1000 * t) + 0.1 * np.random.randn(sample_count)
+        vmin = float(np.min(sig))
+        vmax = float(np.max(sig))
+        return WaveformData(
+            channel=channel,
+            samples=sig.tolist(),
+            sample_rate=sr,
+            time_span=sample_count / sr,
+            vpp=vmax - vmin,
+            vmin=vmin,
+            vmax=vmax,
+            frequency=cfg.frequency if cfg.waveform != "dc" else None,
+        )
+
+    def psu_set(self, channel: int, voltage: float) -> bool:
+        if channel not in (0, 1):
+            return False
+        self._psu_voltages[channel] = max(min(voltage, 5.0), -5.0)
+        return True
+
+    def psu_get(self, channel: int) -> float:
+        return self._psu_voltages.get(channel, 0.0)
+
+    def psu_enable(self, channel: int) -> bool:
+        self._psu_enabled[channel] = True
+        return True
+
+    def psu_disable(self, channel: int) -> bool:
+        self._psu_enabled[channel] = False
+        return True
+
+
+def create_backend(mock: bool = False) -> Backend:
+    if mock:
+        return MockBackend()
+    try:
+        from adalm2000_mcp.iio_backend import IioBackend
+        bk = IioBackend()
+        devs = bk.list_devices()
+        if devs:
+            return bk
+        return MockBackend()
+    except Exception:
+        return MockBackend()

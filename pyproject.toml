@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adalm2000-mcp"
+version = "0.1.0"
+description = "MCP server for ADALM2000 (M2k) — AWG, scope, PSU via libiio"
+authors = []
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=3.4.2,<4",
+    "numpy>=1.21.0,<3.0.0",
+    "scipy>=1.7.0,<2.0.0",
+    "click>=8.0.0,<9.0.0",
+    "rich>=13.0.0,<14.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.15.2",
+]
+
+[project.scripts]
+adalm2000-mcp = "adalm2000_mcp.cli:main"
+adalm-mcp = "adalm2000_mcp.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
