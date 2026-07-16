@@ -288,6 +288,47 @@ def status():
 
 
 @click.group()
+def pattern():
+    pass
+
+
+@pattern.command()
+@click.option("--channel", default=0, type=int, help="DIO channel (0-15)")
+@click.option("--waveform", default="square", help="square/pulse/clock/constant/custom")
+@click.option("--frequency", default=1000.0, type=float)
+@click.option("--duty-cycle", default=50.0, type=float)
+@click.option("--data", default="", help="Comma-separated hex values for custom waveform")
+@click.option("--sample-rate", default=100e6, type=float)
+def generate(channel: int, waveform: str, frequency: float, duty_cycle: float, data: str, sample_rate: float):
+    from adalm2000_mcp.tools.pattern import handle_pattern
+    b = _get_backend()
+    result = handle_pattern(b, "generate", channel=channel, waveform=waveform,
+                            frequency=frequency, duty_cycle=duty_cycle, data=data, sample_rate=sample_rate)
+    if result["success"]:
+        click.echo(f"Pattern ch{channel}: {waveform} @ {frequency} Hz, duty={duty_cycle}%")
+    else:
+        click.echo(f"Error: {result.get('error')}")
+
+
+@pattern.command()
+@click.option("--channel", default=0, type=int)
+def stop(channel: int):
+    from adalm2000_mcp.tools.pattern import handle_pattern
+    b = _get_backend()
+    result = handle_pattern(b, "stop", channel=channel)
+    click.echo(f"Pattern ch{channel} stopped")
+
+
+@pattern.command()
+def status():
+    from adalm2000_mcp.tools.pattern import handle_pattern
+    b = _get_backend()
+    result = handle_pattern(b, "status")
+    for c in result.get("channels", []):
+        click.echo(f"  Ch{c['channel']}: {c['waveform']} @ {c['frequency']} Hz, enabled={c['enabled']}")
+
+
+@click.group()
 def device():
     pass
 

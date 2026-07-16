@@ -13,6 +13,7 @@ from adalm2000_mcp.backend import (
     Backend,
     DeviceInfo,
     LogicData,
+    PatternConfig,
     WaveformData,
 )
 
@@ -271,3 +272,47 @@ class IioBackend(Backend):
             sample_rate=sr, time_span=n / sr,
             bits_per_sample=16,
         )
+
+    def _generate_pattern_data(self, cfg: PatternConfig) -> bytes | None:
+        sr = int(cfg.sample_rate)
+        if cfg.data:
+            samples = cfg.data[:]
+        elif cfg.waveform == "constant":
+            return None
+        else:
+            period = max(int(sr / max(cfg.frequency, 1)), 2)
+            high = int(period * cfg.duty_cycle / 100.0)
+            n = period * 10
+            samples = [(0xFF if (i % period) < high else 0x00) for i in range(n)]
+        return np.array(samples, dtype=np.uint16).tobytes()
+
+    def pattern_generate(self, config: PatternConfig) -> bool:
+        uri = self._uri()
+        if not uri:
+            return False
+        try:
+            data = self._generate_pattern_data(config)
+            dev = "m2k-logic-analyser-tx"
+            _run(["iio_attr", "-u", uri, "-d", dev, "sampling_frequency", str(int(config.sample_rate))])
+            if data is not None:
+                _run(["iio_writedev", "-u", uri, "-T", "0", "--buffer-size", str(len(data) // 2), dev], input_bytes=data)
+            else:
+                val = 0xFF if config.duty_cycle > 50 else 0x00
+                _run(["iio_attr", "-u", uri, "-d", dev, "voltage0", str(val)])
+            config.enabled = True
+            return True
+        except Exception:
+            return False
+
+    def pattern_stop(self, channel: int) -> bool:
+        uri = self._uri()
+        if not uri:
+            return False
+        try:
+            _run(["iio_attr", "-u", uri, "-d", "m2k-logic-analyser-tx", "voltage0", "0"])
+            return True
+        except Exception:
+            return False
+
+    def pattern_status(self) -> list[PatternConfig]:
+        return []

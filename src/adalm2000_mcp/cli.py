@@ -1,7 +1,7 @@
 import importlib.metadata
 
 import click
-from adalm2000_mcp.cli_commands import awg, device, logic, psu, scope
+from adalm2000_mcp.cli_commands import awg, device, logic, pattern, psu, scope
 from adalm2000_mcp.server import run_server
 
 try:
@@ -23,6 +23,7 @@ main.add_command(awg)
 main.add_command(scope)
 main.add_command(psu)
 main.add_command(logic)
+main.add_command(pattern)
 main.add_command(device)
 
 

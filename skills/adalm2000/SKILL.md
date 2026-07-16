@@ -4,7 +4,8 @@ description: |
   Control ADALM2000 (M2k) USB test instrument — AWG, oscilloscope,
   power supply, 16-channel logic analyzer with UART/SPI/I2C/PWM decoding.
   Trigger on: "adalm2000", "m2k", "adalm", "awg", "logic analyzer",
-  "uart decode", "spi decode", "i2c decode", "pwm measure",
+  "pattern generator", "digital pattern", "uart decode",
+  "spi decode", "i2c decode", "pwm measure",
   "signal generator", "oscilloscope", "power supply", "bench test".
 ---
 
@@ -66,6 +67,18 @@ adalm_logic(operation="decode_pwm", channel=1)
 - I2C: START=SDA↓ while SCL↑. STOP=SDA↑ while SCL↑.
 - PWM: measures frequency + duty cycle.
 CLI: `adalm2000-mcp logic <capture|decode-uart|decode-spi|decode-i2c|decode-pwm> [options]`
+
+### `adalm_pattern` — Digital Pattern Generator
+```
+adalm_pattern(operation="generate", channel=0, waveform="square", frequency=1000, duty_cycle=50)
+adalm_pattern(operation="generate", channel=0, waveform="custom", data="0xFF,0x00,0xAA,0x55")
+adalm_pattern(operation="generate", channel=0, waveform="constant", duty_cycle=100)
+adalm_pattern(operation="stop", channel=0)
+adalm_pattern(operation="status")
+```
+Drives DIO pins with digital patterns. Waveforms: `square` `pulse` `clock` `constant` `custom`.
+Use `custom` with comma-separated hex data for arbitrary sequences.
+CLI: `adalm2000-mcp pattern <generate|stop|status> [options]`
 
 ## Common Workflows
 

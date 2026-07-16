@@ -9,6 +9,7 @@ from adalm2000_mcp.tools.device import handle_device
 from adalm2000_mcp.tools.awg import handle_awg
 from adalm2000_mcp.tools.scope import handle_scope
 from adalm2000_mcp.tools.logic import handle_logic
+from adalm2000_mcp.tools.pattern import handle_pattern
 from adalm2000_mcp.tools.psu import handle_psu
 
 mcp = FastMCP("adalm2000-mcp", version="0.2.0")
@@ -101,6 +102,22 @@ def adalm_logic(
         sclk_channel, mosi_channel, miso_channel, cs_channel,
         scl_channel, sda_channel, cpol, cpha, bit_order, address_bits,
     )
+
+
+@mcp.tool(description="""Digital pattern generator on DIO pins: generate/ stop/ status.
+Waveforms: square/ pulse/ clock/ constant/ custom.
+CLI: adalm2000-mcp pattern <command> [options]""")
+def adalm_pattern(
+    operation: str,
+    channel: int = 0,
+    waveform: str = "square",
+    frequency: float = 1000.0,
+    duty_cycle: float = 50.0,
+    data: str = "",
+    sample_rate: float = 100e6,
+) -> dict:
+    b = get_backend()
+    return handle_pattern(b, operation, channel, waveform, frequency, duty_cycle, data, sample_rate)
 
 
 def run_server(mock: bool = False, http: bool = False, port: int = 10892, transport: str | None = None):

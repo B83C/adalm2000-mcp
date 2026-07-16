@@ -55,6 +55,17 @@ class LogicData:
     bits_per_sample: int = 16
 
 
+@dataclass
+class PatternConfig:
+    channel: int
+    waveform: str = "square"
+    frequency: float = 1000.0
+    duty_cycle: float = 50.0
+    data: list[int] | None = None
+    sample_rate: float = 100e6
+    enabled: bool = False
+
+
 class Backend(ABC):
     @abstractmethod
     def list_devices(self) -> list[dict[str, Any]]:
@@ -118,6 +129,18 @@ class Backend(ABC):
     ) -> LogicData:
         ...
 
+    @abstractmethod
+    def pattern_generate(self, config: PatternConfig) -> bool:
+        ...
+
+    @abstractmethod
+    def pattern_stop(self, channel: int) -> bool:
+        ...
+
+    @abstractmethod
+    def pattern_status(self) -> list[PatternConfig]:
+        ...
+
 
 class MockBackend(Backend):
     def __init__(self):
@@ -128,6 +151,7 @@ class MockBackend(Backend):
         }
         self._psu_voltages: dict[int, float] = {0: 0.0, 1: 0.0}
         self._psu_enabled: dict[int, bool] = {0: False, 1: False}
+        self._pattern_configs: dict[int, PatternConfig] = {}
 
     def list_devices(self) -> list[dict[str, Any]]:
         return [
@@ -272,6 +296,34 @@ class MockBackend(Backend):
             time_span=n / sr,
             bits_per_sample=16,
         )
+
+    def _generate_pattern_samples(self, cfg: PatternConfig) -> list[int]:
+        sr = cfg.sample_rate
+        if cfg.data:
+            return cfg.data[:]
+        if cfg.waveform == "constant":
+            return [0xFF] * 1024
+        period = max(int(sr / max(cfg.frequency, 1)), 2)
+        high = int(period * cfg.duty_cycle / 100.0)
+        n = period * 10
+        samples = []
+        for i in range(n):
+            val = 0xFF if (i % period) < high else 0x00
+            samples.append(val)
+        return samples
+
+    def pattern_generate(self, config: PatternConfig) -> bool:
+        self._pattern_configs[config.channel] = config
+        return True
+
+    def pattern_stop(self, channel: int) -> bool:
+        cfg = self._pattern_configs.get(channel)
+        if cfg:
+            cfg.enabled = False
+        return True
+
+    def pattern_status(self) -> list[PatternConfig]:
+        return list(self._pattern_configs.values())
 
 
 def create_backend(mock: bool = False) -> Backend:
