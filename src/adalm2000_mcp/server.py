@@ -105,7 +105,9 @@ def adalm_logic(
 
 
 @mcp.tool(description="""Digital pattern generator on DIO pins: generate/ stop/ status.
-Waveforms: square/ pulse/ clock/ constant/ custom.
+Output modes: push_pull (default) / open_drain / open_source / high_z
+Pull modes: none (default) / pull_up / pull_down
+Waveforms: square/ pulse/ clock/ constant/ custom/ random/ prbs
 CLI: adalm2000-mcp pattern <command> [options]""")
 def adalm_pattern(
     operation: str,
@@ -115,10 +117,16 @@ def adalm_pattern(
     duty_cycle: float = 50.0,
     data: str = "",
     sample_rate: float = 100e6,
-    open_drain: bool = False,
+    output_mode: str = "push_pull",
+    pull_mode: str = "none",
+    burst_count: int = 0,
+    invert: bool = False,
 ) -> dict:
     b = get_backend()
-    return handle_pattern(b, operation, channel, waveform, frequency, duty_cycle, data, sample_rate, open_drain)
+    return handle_pattern(
+        b, operation, channel, waveform, frequency, duty_cycle,
+        data, sample_rate, output_mode, pull_mode, burst_count, invert,
+    )
 
 
 def run_server(mock: bool = False, http: bool = False, port: int = 10892, transport: str | None = None):

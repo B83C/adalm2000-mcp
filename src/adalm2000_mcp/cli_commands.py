@@ -294,20 +294,26 @@ def pattern():
 
 @pattern.command()
 @click.option("--channel", default=0, type=int, help="DIO channel (0-15)")
-@click.option("--waveform", default="square", help="square/pulse/clock/constant/custom")
-@click.option("--frequency", default=1000.0, type=float)
-@click.option("--duty-cycle", default=50.0, type=float)
+@click.option("--waveform", default="square", help="square/pulse/clock/constant/custom/random/prbs")
+@click.option("--frequency", default=1000.0, type=float, help="Hz")
+@click.option("--duty-cycle", default=50.0, type=float, help="0-100%")
 @click.option("--data", default="", help="Comma-separated hex values for custom waveform")
-@click.option("--sample-rate", default=100e6, type=float)
-@click.option("--open-drain", is_flag=True, help="Use open-drain output instead of push-pull")
-def generate(channel: int, waveform: str, frequency: float, duty_cycle: float, data: str, sample_rate: float, open_drain: bool):
+@click.option("--sample-rate", default=100e6, type=float, help="Hz")
+@click.option("--output-mode", default="push_pull", help="push_pull/open_drain/open_source/high_z")
+@click.option("--pull-mode", default="none", help="none/pull_up/pull_down")
+@click.option("--burst-count", default=0, type=int, help="0=continuous, N=cycles")
+@click.option("--invert", is_flag=True, help="Invert all bits")
+def generate(channel: int, waveform: str, frequency: float, duty_cycle: float,
+             data: str, sample_rate: float, output_mode: str, pull_mode: str,
+             burst_count: int, invert: bool):
     from adalm2000_mcp.tools.pattern import handle_pattern
     b = _get_backend()
     result = handle_pattern(b, "generate", channel=channel, waveform=waveform,
                             frequency=frequency, duty_cycle=duty_cycle, data=data,
-                            sample_rate=sample_rate, open_drain=open_drain)
+                            sample_rate=sample_rate, output_mode=output_mode,
+                            pull_mode=pull_mode, burst_count=burst_count, invert=invert)
     if result["success"]:
-        click.echo(f"Pattern ch{channel}: {waveform} @ {frequency} Hz, duty={duty_cycle}%")
+        click.echo(f"Pattern ch{channel}: {waveform} @ {frequency} Hz, mode={output_mode}")
     else:
         click.echo(f"Error: {result.get('error')}")
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from adalm2000_mcp.backend import Backend, PatternConfig
-
-WAVEFORM_TYPES = ["square", "pulse", "clock", "constant", "custom"]
+from adalm2000_mcp.backend import OUTPUT_MODES, PULL_MODES, WAVEFORM_TYPES, Backend, PatternConfig
 
 
 def handle_pattern(
@@ -14,31 +12,40 @@ def handle_pattern(
     duty_cycle: float = 50.0,
     data: str = "",
     sample_rate: float = 100e6,
-    open_drain: bool = False,
+    output_mode: str = "push_pull",
+    pull_mode: str = "none",
+    burst_count: int = 0,
+    invert: bool = False,
 ) -> dict:
     if operation == "generate":
         if waveform not in WAVEFORM_TYPES:
             return {"success": False, "error": f"Unknown waveform: {waveform}. Choose: {', '.join(WAVEFORM_TYPES)}"}
+        if output_mode not in OUTPUT_MODES:
+            return {"success": False, "error": f"Unknown output mode: {output_mode}. Choose: {', '.join(OUTPUT_MODES)}"}
+        if pull_mode not in PULL_MODES:
+            return {"success": False, "error": f"Unknown pull mode: {pull_mode}. Choose: {', '.join(PULL_MODES)}"}
         parsed_data = [int(x.strip(), 0) for x in data.split(",") if x.strip()] if data else None
         cfg = PatternConfig(
             channel=channel, waveform=waveform, frequency=frequency,
             duty_cycle=duty_cycle, data=parsed_data, sample_rate=sample_rate,
-            open_drain=open_drain,
+            output_mode=output_mode, pull_mode=pull_mode,
+            burst_count=burst_count, invert=invert,
         )
         ok = backend.pattern_generate(cfg)
         return {
             "success": ok,
-            "message": f"Pattern generator channel {channel}: {waveform}" if ok else f"Failed to start channel {channel}",
+            "message": f"Pattern ch{channel}: {waveform}" if ok else f"Failed on ch{channel}",
             "config": {
                 "channel": channel, "waveform": waveform, "frequency": frequency,
                 "duty_cycle": duty_cycle, "sample_rate": sample_rate,
-                "open_drain": open_drain,
+                "output_mode": output_mode, "pull_mode": pull_mode,
+                "burst_count": burst_count, "invert": invert,
             },
         }
 
     elif operation == "stop":
         ok = backend.pattern_stop(channel)
-        return {"success": ok, "message": f"Pattern channel {channel} stopped" if ok else f"Failed to stop channel {channel}"}
+        return {"success": ok, "message": f"Pattern ch{channel} stopped" if ok else f"Failed to stop ch{channel}"}
 
     elif operation == "status":
         configs = backend.pattern_status()
@@ -48,7 +55,9 @@ def handle_pattern(
                 {
                     "channel": c.channel, "waveform": c.waveform,
                     "frequency": c.frequency, "duty_cycle": c.duty_cycle,
-                    "open_drain": c.open_drain, "enabled": c.enabled,
+                    "output_mode": c.output_mode, "pull_mode": c.pull_mode,
+                    "burst_count": c.burst_count, "invert": c.invert,
+                    "enabled": c.enabled,
                 }
                 for c in configs
             ],

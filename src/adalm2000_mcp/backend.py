@@ -55,6 +55,11 @@ class LogicData:
     bits_per_sample: int = 16
 
 
+OUTPUT_MODES = ["push_pull", "open_drain", "open_source", "high_z"]
+PULL_MODES = ["none", "pull_up", "pull_down"]
+WAVEFORM_TYPES = ["square", "pulse", "clock", "constant", "custom", "random", "prbs"]
+
+
 @dataclass
 class PatternConfig:
     channel: int
@@ -63,7 +68,10 @@ class PatternConfig:
     duty_cycle: float = 50.0
     data: list[int] | None = None
     sample_rate: float = 100e6
-    open_drain: bool = False
+    output_mode: str = "push_pull"
+    pull_mode: str = "none"
+    burst_count: int = 0
+    invert: bool = False
     enabled: bool = False
 
 
@@ -301,17 +309,31 @@ class MockBackend(Backend):
     def _generate_pattern_samples(self, cfg: PatternConfig) -> list[int]:
         sr = cfg.sample_rate
         if cfg.data:
-            return cfg.data[:]
-        if cfg.waveform == "constant":
-            return [0xFF] * 1024
-        period = max(int(sr / max(cfg.frequency, 1)), 2)
-        high = int(period * cfg.duty_cycle / 100.0)
-        n = period * 10
-        samples = []
-        for i in range(n):
-            val = 0xFF if (i % period) < high else 0x00
-            samples.append(val)
-        return samples
+            out = cfg.data[:]
+        elif cfg.waveform in ("constant", "dc"):
+            out = [0xFF] * 1024
+        elif cfg.waveform == "random":
+            import random
+            out = [random.randint(0, 0xFF) for _ in range(1024)]
+        elif cfg.waveform == "prbs":
+            n = 1024
+            lfsr = 0xACE1
+            out = []
+            for _ in range(n):
+                bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1
+                lfsr = (lfsr >> 1) | (bit << 15)
+                out.append(0xFF if bit else 0x00)
+        else:
+            period = max(int(sr / max(cfg.frequency, 1)), 2)
+            high = int(period * cfg.duty_cycle / 100.0)
+            n = (period * cfg.burst_count) if cfg.burst_count > 0 else (period * 10)
+            out = []
+            for i in range(n):
+                val = 0xFF if (i % period) < high else 0x00
+                out.append(val)
+        if cfg.invert:
+            out = [((~v) & 0xFF) for v in out]
+        return out
 
     def pattern_generate(self, config: PatternConfig) -> bool:
         self._pattern_configs[config.channel] = config

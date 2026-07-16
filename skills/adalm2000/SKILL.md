@@ -72,14 +72,20 @@ CLI: `adalm2000-mcp logic <capture|decode-uart|decode-spi|decode-i2c|decode-pwm>
 ```
 adalm_pattern(operation="generate", channel=0, waveform="square", frequency=1000, duty_cycle=50)
 adalm_pattern(operation="generate", channel=0, waveform="custom", data="0xFF,0x00,0xAA,0x55")
-adalm_pattern(operation="generate", channel=0, waveform="constant", duty_cycle=100, open_drain=True)
+adalm_pattern(operation="generate", channel=0, waveform="constant", output_mode="open_drain")
+adalm_pattern(operation="generate", channel=1, waveform="square", pull_mode="pull_up")
+adalm_pattern(operation="generate", channel=2, waveform="prbs", burst_count=100)
 adalm_pattern(operation="stop", channel=0)
 adalm_pattern(operation="status")
 ```
-Drives DIO pins with digital patterns. Waveforms: `square` `pulse` `clock` `constant` `custom`.
-Use `custom` with comma-separated hex data for arbitrary sequences.
-Set `open_drain=True` for open-drain output (e.g., I2C, multi-drop buses).
-CLI: `adalm2000-mcp pattern generate --open-drain`
+Drives DIO pins with digital patterns.
+
+**Output modes:** `push_pull` (default), `open_drain`, `open_source`, `high_z`
+**Pull modes:** `none` (default), `pull_up`, `pull_down`
+**Waveforms:** `square` `pulse` `clock` `constant` `custom` `random` `prbs`
+**Options:** `burst_count` (cycles), `invert` (bit inversion)
+
+CLI: `adalm2000-mcp pattern generate --output-mode open_drain --pull-mode pull_up`
 
 ## Common Workflows
 

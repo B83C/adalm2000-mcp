@@ -277,13 +277,25 @@ class IioBackend(Backend):
         sr = int(cfg.sample_rate)
         if cfg.data:
             samples = cfg.data[:]
-        elif cfg.waveform == "constant":
+        elif cfg.waveform in ("constant", "dc"):
             return None
+        elif cfg.waveform == "random":
+            samples = [int.from_bytes(os.urandom(1), "big") for _ in range(1024)]
+        elif cfg.waveform == "prbs":
+            n = 1024
+            lfsr = 0xACE1
+            samples = []
+            for _ in range(n):
+                bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1
+                lfsr = (lfsr >> 1) | (bit << 15)
+                samples.append(0xFF if bit else 0x00)
         else:
             period = max(int(sr / max(cfg.frequency, 1)), 2)
             high = int(period * cfg.duty_cycle / 100.0)
-            n = period * 10
+            n = (period * cfg.burst_count) if cfg.burst_count > 0 else (period * 10)
             samples = [(0xFF if (i % period) < high else 0x00) for i in range(n)]
+        if cfg.invert:
+            samples = [(~v & 0xFF) for v in samples]
         return np.array(samples, dtype=np.uint16).tobytes()
 
     def _try_set_output_mode(self, config: PatternConfig) -> None:
@@ -291,8 +303,10 @@ class IioBackend(Backend):
             uri = self._uri()
             if not uri:
                 return
-            mode = "open_drain" if config.open_drain else "push_pull"
-            _run(["iio_attr", "-u", uri, "-c", "m2k-logic-analyzer-tx", f"voltage{config.channel}", "out_mode", mode])
+            _run(["iio_attr", "-u", uri, "-c", "m2k-logic-analyzer-tx",
+                  f"voltage{config.channel}", "out_mode", config.output_mode])
+            _run(["iio_attr", "-u", uri, "-c", "m2k-logic-analyzer-tx",
+                  f"voltage{config.channel}", "pull_mode", config.pull_mode])
         except Exception:
             pass
 
