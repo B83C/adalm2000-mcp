@@ -29,13 +29,15 @@ def set_backend(b: Backend) -> None:
     _backend = b
 
 
-@mcp.tool()
+@mcp.tool(description="""Device control: list/ connect/ disconnect/ status/ check.
+CLI: adalm2000-mcp device <command>""")
 def adalm_device(operation: str) -> dict:
     b = get_backend()
     return handle_device(b, operation)
 
 
-@mcp.tool()
+@mcp.tool(description="""Arbitrary waveform generator: configure/ start/ stop/ status.
+CLI: adalm2000-mcp awg <command> [options]""")
 def adalm_awg(
     operation: str,
     channel: int = 1,
@@ -48,7 +50,8 @@ def adalm_awg(
     return handle_awg(b, operation, channel, waveform, frequency, amplitude, offset)
 
 
-@mcp.tool()
+@mcp.tool(description="""Oscilloscope: capture/ measure/ fft.
+CLI: adalm2000-mcp scope <command> [options]""")
 def adalm_scope(
     operation: str,
     channel: int = 1,
@@ -59,13 +62,15 @@ def adalm_scope(
     return handle_scope(b, operation, channel, sample_count, sample_rate)
 
 
-@mcp.tool()
+@mcp.tool(description="""Power supply: set/ get/ enable/ disable/ status.
+CLI: adalm2000-mcp psu <command> [options]""")
 def adalm_psu(operation: str, channel: int = 0, voltage: float = 0.0) -> dict:
     b = get_backend()
     return handle_psu(b, operation, channel, voltage)
 
 
-@mcp.tool()
+@mcp.tool(description="""Digital logic analyzer: capture/ decode_uart/ decode_spi/ decode_i2c/ decode_pwm/ status.
+CLI equivalent: adalm2000-mcp logic <command> [options]""")
 def adalm_logic(
     operation: str,
     channel: int = 0,

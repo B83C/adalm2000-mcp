@@ -1,6 +1,7 @@
 import importlib.metadata
 
 import click
+from adalm2000_mcp.cli_commands import awg, device, logic, psu, scope
 from adalm2000_mcp.server import run_server
 
 try:
@@ -11,8 +12,18 @@ except importlib.metadata.PackageNotFoundError:
 
 @click.group()
 @click.version_option(version=_version, prog_name="adalm2000-mcp")
-def main():
-    pass
+@click.option("--mock", is_flag=True, help="Use mock backend (no hardware)")
+@click.pass_context
+def main(ctx: click.Context, mock: bool):
+    ctx.ensure_object(dict)
+    ctx.obj["mock"] = mock
+
+
+main.add_command(awg)
+main.add_command(scope)
+main.add_command(psu)
+main.add_command(logic)
+main.add_command(device)
 
 
 @main.command()
