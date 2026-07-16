@@ -222,10 +222,10 @@ class IioBackend(Backend):
             return None
         sr = int(sample_rate or 100e6)
         try:
-            _run(["iio_attr", "-u", uri, "-d", "m2k-logic-analyser-rx", "sampling_frequency", str(sr)])
+            _run(["iio_attr", "-u", uri, "-d", "m2k-logic-analyzer-rx", "sampling_frequency", str(sr)])
             result = _run([
                 "iio_readdev", "-u", uri, "-s", str(sample_count),
-                "--buffer-size", str(sample_count), "m2k-logic-analyser-rx",
+                "--buffer-size", str(sample_count), "m2k-logic-analyzer-rx",
             ])
             if result.returncode != 0 or len(result.stdout) < 2:
                 return None
@@ -286,13 +286,24 @@ class IioBackend(Backend):
             samples = [(0xFF if (i % period) < high else 0x00) for i in range(n)]
         return np.array(samples, dtype=np.uint16).tobytes()
 
+    def _try_set_output_mode(self, config: PatternConfig) -> None:
+        try:
+            uri = self._uri()
+            if not uri:
+                return
+            mode = "open_drain" if config.open_drain else "push_pull"
+            _run(["iio_attr", "-u", uri, "-c", "m2k-logic-analyzer-tx", f"voltage{config.channel}", "out_mode", mode])
+        except Exception:
+            pass
+
     def pattern_generate(self, config: PatternConfig) -> bool:
         uri = self._uri()
         if not uri:
             return False
         try:
             data = self._generate_pattern_data(config)
-            dev = "m2k-logic-analyser-tx"
+            dev = "m2k-logic-analyzer-tx"
+            self._try_set_output_mode(config)
             _run(["iio_attr", "-u", uri, "-d", dev, "sampling_frequency", str(int(config.sample_rate))])
             if data is not None:
                 _run(["iio_writedev", "-u", uri, "-T", "0", "--buffer-size", str(len(data) // 2), dev], input_bytes=data)
@@ -309,7 +320,7 @@ class IioBackend(Backend):
         if not uri:
             return False
         try:
-            _run(["iio_attr", "-u", uri, "-d", "m2k-logic-analyser-tx", "voltage0", "0"])
+            _run(["iio_attr", "-u", uri, "-d", "m2k-logic-analyzer-tx", "voltage0", "0"])
             return True
         except Exception:
             return False

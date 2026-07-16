@@ -299,11 +299,13 @@ def pattern():
 @click.option("--duty-cycle", default=50.0, type=float)
 @click.option("--data", default="", help="Comma-separated hex values for custom waveform")
 @click.option("--sample-rate", default=100e6, type=float)
-def generate(channel: int, waveform: str, frequency: float, duty_cycle: float, data: str, sample_rate: float):
+@click.option("--open-drain", is_flag=True, help="Use open-drain output instead of push-pull")
+def generate(channel: int, waveform: str, frequency: float, duty_cycle: float, data: str, sample_rate: float, open_drain: bool):
     from adalm2000_mcp.tools.pattern import handle_pattern
     b = _get_backend()
     result = handle_pattern(b, "generate", channel=channel, waveform=waveform,
-                            frequency=frequency, duty_cycle=duty_cycle, data=data, sample_rate=sample_rate)
+                            frequency=frequency, duty_cycle=duty_cycle, data=data,
+                            sample_rate=sample_rate, open_drain=open_drain)
     if result["success"]:
         click.echo(f"Pattern ch{channel}: {waveform} @ {frequency} Hz, duty={duty_cycle}%")
     else:

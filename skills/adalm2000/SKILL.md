@@ -72,13 +72,14 @@ CLI: `adalm2000-mcp logic <capture|decode-uart|decode-spi|decode-i2c|decode-pwm>
 ```
 adalm_pattern(operation="generate", channel=0, waveform="square", frequency=1000, duty_cycle=50)
 adalm_pattern(operation="generate", channel=0, waveform="custom", data="0xFF,0x00,0xAA,0x55")
-adalm_pattern(operation="generate", channel=0, waveform="constant", duty_cycle=100)
+adalm_pattern(operation="generate", channel=0, waveform="constant", duty_cycle=100, open_drain=True)
 adalm_pattern(operation="stop", channel=0)
 adalm_pattern(operation="status")
 ```
 Drives DIO pins with digital patterns. Waveforms: `square` `pulse` `clock` `constant` `custom`.
 Use `custom` with comma-separated hex data for arbitrary sequences.
-CLI: `adalm2000-mcp pattern <generate|stop|status> [options]`
+Set `open_drain=True` for open-drain output (e.g., I2C, multi-drop buses).
+CLI: `adalm2000-mcp pattern generate --open-drain`
 
 ## Common Workflows
 

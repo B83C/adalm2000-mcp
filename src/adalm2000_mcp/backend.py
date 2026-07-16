@@ -63,6 +63,7 @@ class PatternConfig:
     duty_cycle: float = 50.0
     data: list[int] | None = None
     sample_rate: float = 100e6
+    open_drain: bool = False
     enabled: bool = False
 
 

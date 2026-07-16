@@ -14,6 +14,7 @@ def handle_pattern(
     duty_cycle: float = 50.0,
     data: str = "",
     sample_rate: float = 100e6,
+    open_drain: bool = False,
 ) -> dict:
     if operation == "generate":
         if waveform not in WAVEFORM_TYPES:
@@ -22,6 +23,7 @@ def handle_pattern(
         cfg = PatternConfig(
             channel=channel, waveform=waveform, frequency=frequency,
             duty_cycle=duty_cycle, data=parsed_data, sample_rate=sample_rate,
+            open_drain=open_drain,
         )
         ok = backend.pattern_generate(cfg)
         return {
@@ -30,6 +32,7 @@ def handle_pattern(
             "config": {
                 "channel": channel, "waveform": waveform, "frequency": frequency,
                 "duty_cycle": duty_cycle, "sample_rate": sample_rate,
+                "open_drain": open_drain,
             },
         }
 
@@ -45,7 +48,7 @@ def handle_pattern(
                 {
                     "channel": c.channel, "waveform": c.waveform,
                     "frequency": c.frequency, "duty_cycle": c.duty_cycle,
-                    "enabled": c.enabled,
+                    "open_drain": c.open_drain, "enabled": c.enabled,
                 }
                 for c in configs
             ],

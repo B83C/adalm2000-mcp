@@ -115,9 +115,10 @@ def adalm_pattern(
     duty_cycle: float = 50.0,
     data: str = "",
     sample_rate: float = 100e6,
+    open_drain: bool = False,
 ) -> dict:
     b = get_backend()
-    return handle_pattern(b, operation, channel, waveform, frequency, duty_cycle, data, sample_rate)
+    return handle_pattern(b, operation, channel, waveform, frequency, duty_cycle, data, sample_rate, open_drain)
 
 
 def run_server(mock: bool = False, http: bool = False, port: int = 10892, transport: str | None = None):
